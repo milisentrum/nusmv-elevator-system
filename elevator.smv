@@ -1,0 +1,86 @@
+MODULE main 
+-- Объявляем переменные, отвечающие за состояния лифтов, систему вызова и систему оповещений
+VAR
+    lift1_state : {idle, movingUp, movingDown, openingDoor, closingDoor}; -- Состояния первого лифта
+    lift2_state : {idle, movingUp, movingDown, openingDoor, closingDoor}; -- Состояния второго лифта
+    call_system : {noCalls, callUp, callDown}; -- Состояния системы вызова
+-- Состояния системы оповещений (нормальное состояние, проблема с первым 
+-- лифтом, проблема со вторым лифтом)
+    alarm_system : {normal, faultLift1, faultLift2}; 
+ 
+-- Задаем начальные состояния для каждой из переменных
+ASSIGN
+    init(lift1_state) := idle; -- Первый лифт в начальный момент находится в состоянии ожидания
+    init(lift2_state) := idle; -- Второй лифт также в состоянии ожидания
+    init(call_system) := noCalls; -- Нет активных вызовов
+    init(alarm_system) := normal; -- Система оповещений в нормальном состоянии
+ 
+-- Транзиции для первого лифта
+TRANS
+-- Если первый лифт свободен и есть вызов вверх, он начинает движение вверх
+    (lift1_state = idle & call_system = callUp) -> next(lift1_state) = movingUp; 
+TRANS
+-- Если первый лифт свободен и есть вызов вниз, он начинает движение вниз
+    (lift1_state = idle & call_system = callDown) -> next(lift1_state) = movingDown; 
+ 
+-- Транзиции для остановки первого лифта и открытия дверей
+TRANS
+-- Если первый лифт двигался вверх и вызова вверх уже нет, он открывает двери
+    (lift1_state = movingUp & call_system != callUp) -> next(lift1_state) = openingDoor; 
+TRANS
+-- Если первый лифт двигался вниз и вызова вниз уже нет, он открывает двери
+    (lift1_state = movingDown & call_system != callDown) -> next(lift1_state) = openingDoor; 
+ 
+-- Транзиции для второго лифта (аналогично первому)
+TRANS
+    (lift2_state = idle & call_system = callUp) -> next(lift2_state) = movingUp;
+TRANS
+    (lift2_state = idle & call_system = callDown) -> next(lift2_state) = movingDown;
+TRANS
+    (lift2_state = movingUp & call_system != callUp) -> next(lift2_state) = openingDoor;
+TRANS
+    (lift2_state = movingDown & call_system != callDown) -> next(lift2_state) = openingDoor;
+ 
+-- Транзиции для остановки лифта при обнаружении проблемы
+TRANS
+-- Если система оповещений указывает на проблему с первым лифтом, он переходит в состояние ожидания
+    (alarm_system = faultLift1) -> next(lift1_state) = idle;
+TRANS
+-- Если система оповещений указывает на проблему со вторым лифтом, он переходит в состояние ожидания
+    (alarm_system = faultLift2) -> next(lift2_state) = idle;
+ 
+-- Транзиции для открытия и закрытия дверей лифта
+TRANS
+-- После открытия дверей первого лифта, они закрываются
+    (lift1_state = openingDoor) -> next(lift1_state) = closingDoor; 
+TRANS
+-- После открытия дверей второго лифта, они закрываются
+    (lift2_state = openingDoor) -> next(lift2_state) = closingDoor; 
+TRANS
+-- После закрытия дверей первого лифта, он переходит в состояние ожидания
+    (lift1_state = closingDoor) -> next(lift1_state) = idle; 
+TRANS
+-- После закрытия дверей второго лифта, он переходит в состояние ожидания
+    (lift2_state = closingDoor) -> next(lift2_state) = idle; 
+ 
+-- Дополнительные транзиции для ситуации, когда оба лифта двигаются в одном направлении
+TRANS
+-- Если оба лифта двигаются вверх и есть вызов вверх, первый лифт останавливается и открывает двери, второй продолжает движение
+    (lift1_state = movingUp & lift2_state = movingUp & call_system = callUp) -> (next(lift1_state) = openingDoor & next(lift2_state) = movingUp); 
+TRANS
+-- Если оба лифта двигаются вниз и есть вызов вниз, первый лифт останавливается и открывает двери, второй продолжает движение
+    (lift1_state = movingDown & lift2_state = movingDown & call_system = callDown) -> (next(lift1_state) = openingDoor & next(lift2_state) = movingDown); 
+ 
+ 
+ 
+SPEC AG (lift1_state = closingDoor -> AX (lift1_state = idle))
+SPEC AG (lift2_state = closingDoor -> AX (lift2_state = idle))
+ 
+SPEC AG ((lift1_state = movingUp & lift2_state = movingUp & call_system = callUp) -> AX (lift1_state = openingDoor | lift2_state = openingDoor))
+SPEC AG ((lift1_state = movingDown & lift2_state = movingDown & call_system = callDown) -> AX (lift1_state = openingDoor | lift2_state = openingDoor))
+ 
+SPEC AG (lift1_state = openingDoor -> AX (lift1_state = closingDoor))
+SPEC AG (lift2_state = openingDoor -> AX (lift2_state = closingDoor))
+ 
+SPEC AG (alarm_system = faultLift1 -> AX (lift1_state != movingUp | lift1_state != movingDown))
+SPEC AG (alarm_system = faultLift2 -> AX (lift2_state != movingUp | lift2_state != movingDown))
