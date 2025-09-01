@@ -25,8 +25,8 @@
    cd nusmv-elevator-system
 
 3. Запустите модель в NuSMV:
-```bash
-nusmv elevator.smv
+   ```bash
+   nusmv elevator.smv
 
 4. Проверьте спецификации (CTL):
 NuSMV выведет результат проверки всех формул SPEC из файла.
